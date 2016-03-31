@@ -17,18 +17,68 @@
 class Search_Result
 {
     /** @var County */
-    public $county;
+    private $county;
 
 
     // These are populated from the captured data.
     /** @var string */
-    public $accountNumber;
+    private $accountNumber;
 
     /** @var string */
-    public $adjudgedValue;
+    private $adjudgedValue;
 
     /** @var string */
-    public $minimumBid;
+    private $minimumBid;
+
+
+    public function __construct(County $county)
+    {
+        $this->county = $county;
+    }
+
+
+    public function getCounty()
+    {
+        return $this->county;
+    }
+
+
+    public function getAccountNumber()
+    {
+        return $this->accountNumber;
+    }
+
+
+    public function getAdjudgedValue()
+    {
+        return $this->adjudgedValue;
+    }
+
+
+    public function getMinimumBid()
+    {
+        return $this->minimumBid;
+    }
+
+
+    /**
+     * Get the appraisal district URL for this property.
+     * @return string
+     */
+    public function getUrl()
+    {
+        if (empty($this->county)) {
+            throw new Exception(
+                "Can't get URL for property; county is not set."
+            );
+        }
+        if (empty($this->accountNumber)) {
+            throw new Exception(
+                "Can't get URL for property; account number is not set."
+            );
+        }
+        return $this->county->getUrl() . $this->accountNumber;
+    }
 
 
     /**
@@ -81,21 +131,20 @@ class Search_Result
                 // XXX TODO: Error: Duplicate attribute
             }
         }
-    }
 
-
-    /**
-     * Get the appraisal district URL for this property.
-     * @return string
-     */
-    public function getUrl()
-    {
-        if (empty($this->accountNumber)) {
-            throw new Exception(
-                "Can't get URL for property; account number is not set."
+        // Unformat currency, to simplify comparisons.
+        $this->adjudgedValue =
+            (float)str_replace(
+                array('$', ','),
+                '',
+                $this->adjudgedValue
             );
-        }
-        return $this->county->getUrl() . $this->accountNumber;
+        $this->minimumBid =
+            (float)str_replace(
+                array('$', ','),
+                '',
+                $this->minimumBid
+            );
     }
 
 
@@ -135,8 +184,7 @@ class Search_Result_Collection
         $resultNodes = $documentXml->xpath('//*/td[@class="repTblCell"]');
         $this->results = array();
         foreach ($resultNodes as $resultNode) {
-            $result = new Search_Result();
-            $result->county = $this->county;
+            $result = new Search_Result($this->county);
             $result->loadFromXml($resultNode);
             $this->results[] = $result;
         }
@@ -296,21 +344,6 @@ foreach ($counties->counties as $countyId => $county) {
         continue;
     }
 
-    // Unformat currency.
-    foreach ($countyResults->results as $property) {
-        $property->adjudgedValue =
-            (float)str_replace(
-                array('$', ','),
-                '',
-                $property->adjudgedValue
-            );
-        $property->minimumBid =
-            (float)str_replace(
-                array('$', ','),
-                '',
-                $property->minimumBid
-            );
-    }
     // Sort by adjudged value.
     usort($countyResults->results, array('Search_Result', 'compareAdjudgedValue'));
     $countyResults->results = array_reverse($countyResults->results);
@@ -324,11 +357,11 @@ foreach ($counties->counties as $countyId => $county) {
 foreach ($allResults as $result) {
     printf(
         "%s,%s,%.2f,%.2f,%s\n",
-        $result->county->getName(),
-        $result->accountNumber,
-        $result->adjudgedValue,
-        $result->minimumBid,
-        $result->county->getUrl() ? $result->getUrl() : ''
+        $result->getCounty()->getName(),
+        $result->getAccountNumber(),
+        $result->getAdjudgedValue(),
+        $result->getMinimumBid(),
+        $result->getCounty()->getUrl() ? $result->getUrl() : ''
     );
 }
 
