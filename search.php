@@ -215,12 +215,20 @@ class Search_Result_Collection
 
 class Search_Query
 {
-    public $state = 'TX';
-    public $countyId;
-    public $saleType = 'SA'; // SA=sale, SO=struck-off
-    public $adjudgedFrom = 90000;
-
     private $url = 'http://actweb.acttax.com/pls/sales/property_taxsales_pkg.results_page';
+
+    private $state = 'TX';
+    private $saleType = 'SA'; // SA=sale, SO=struck-off
+    private $adjudgedFrom = 90000;
+
+    private $countyId;
+
+
+    public function __construct($countyId)
+    {
+        $this->countyId = $countyId;
+    }
+
 
     /**
      * @return string Results/response from the search.
@@ -352,8 +360,7 @@ $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
 $allResults = array();
 foreach ($counties->counties as $countyId => $county) {
-    $search = new Search_Query();
-    $search->countyId = $countyId;
+    $search = new Search_Query($countyId);
 
     $html = $search->execute();
     $countyResults = new Search_Result_Collection($county);
