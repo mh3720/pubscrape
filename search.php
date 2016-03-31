@@ -349,7 +349,7 @@ $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
 
 $allResults = array();
-foreach ($counties->counties as $countyId => $county) {
+foreach ($counties->getCounties() as $countyId => $county) {
     $search = new Search_Query($countyId);
 
     $html = $search->execute();
