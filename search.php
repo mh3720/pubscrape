@@ -268,51 +268,41 @@ class Search_Query
 class County
 {
     /** @var string */
-    private $countyId;
+    private $id;
 
     /** @var string */
-    private $countyName;
+    private $name;
 
     /**
-     * URL prefix for property information.
+     * URL prefix for appraisal district property information.
      * @var string
      */
-    private $countyAppraisalDistrictUrl;
+    private $url;
+
+
+    public function __construct($id, $name, $url = null)
+    {
+        $this->id = $id;
+        $this->name = $name;
+        $this->url = $url;
+    }
 
 
     public function getId()
     {
-        return $this->countyId;
-    }
-
-
-    public function setId($id)
-    {
-        $this->countyId = $id;
+        return $this->id;
     }
 
 
     public function getName()
     {
-        return $this->countyName;
-    }
-
-
-    public function setName($name)
-    {
-        $this->countyName = $name;
+        return $this->name;
     }
 
 
     public function getUrl()
     {
-        return $this->countyAppraisalDistrictUrl;
-    }
-
-
-    public function setUrl($url)
-    {
-        $this->countyAppraisalDistrictUrl = $url;
+        return $this->url;
     }
 }
 
@@ -330,34 +320,27 @@ class County_Collection
             );
         }
 
-        $csvColumnMap = array(
-            'Name' => 0,
-            'Id' => 1,
-            'Url' => 2,
-        );
-
         $counties = array();
         while ($line = fgetcsv($file)) {
-            $county = new County();
-            foreach ($csvColumnMap as $columnName => $columnIndex) {
-                if (isset($line[$columnIndex])) {
-                    call_user_func_array(
-                        array($county, 'set' . $columnName),
-                        array($line[$columnIndex])
-                    );
-                }
+            $name = $line[0];
+            $id = $line[1];
+            if (isset($line[2])) {
+                $url = $line[2];
+            } else {
+                $url = null;
             }
-            $counties[$county->getId()] = $county;
+            $county = new County($id, $name, $url);
+            $counties[$id] = $county;
         }
+        $this->counties = $counties;
 
         fclose($file);
-
-        $this->counties = $counties;
     }
 }
 
 $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
+
 $allResults = array();
 foreach ($counties->counties as $countyId => $county) {
     $search = new Search_Query($countyId);
