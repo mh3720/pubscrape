@@ -1,0 +1,7 @@
+#!/bin/bash
+find output/ -type f |  # list results
+sort -r |               # sort by filename (date); reverse = most recent first
+head -2 |               # only get the 2 most recent dates
+tac |                   # reverse again, put back in original order, for diff
+xargs diff -u           # show differences
+

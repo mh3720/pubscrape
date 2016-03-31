@@ -1,0 +1,29 @@
+How to update / add to the counties list
+
+
+Go to Publicans page for TX; view source
+
+Copy the county list (JS) and save in a new file
+
+Edit list, remove prefixes, parens and quotes
+
+Pipe thru PHP to fix case:
+php -r 'echo ucwords(strtolower(file_get_contents("php://stdin")));'
+
+cat publicans_counties new | sort | uniq > publicans_counties_updated
+mv publicans_counties_updated publicans_counties
+
+grep -f interested_counties publicans_counties > searchable_counties
+
+(IFS=,; cat searchable_counties | while read county id; do grep $county cad_urls || echo $county; done)
+
+--
+
+(
+IFS=,
+cat searchable_counties |
+while read countyName countyId ; do
+  echo "$countyId,$countyName"
+done
+)
+
