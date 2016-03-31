@@ -1,8 +1,23 @@
 #!/usr/bin/php
 <?php
 
-// XXX TODO: Grayson County listings use Geographic ID, not Property ID
+/**
+ * search.php - Use a public web service to find property tax auctions.
+ *
+ * XXX TODO: Refactor this using SOLID principles.
+ * Properties should be private, dependency injection.
+ *
+ * XXX TODO: Grayson County listings use Geographic ID, not Property ID.
+ */
 
+
+/**
+ * Compare (subtract) one search result with another.
+ * @param Search_Result $a
+ * @param Search_Result $b
+ * @return float
+ * XXX TODO: Refactor this to be a method of Search_Result.
+ */
 function compareAdjudgedValue(Search_Result $a, Search_Result $b)
 {
     $a = round($a->adjudgedValue * 100);
@@ -10,14 +25,37 @@ function compareAdjudgedValue(Search_Result $a, Search_Result $b)
     return $a - $b;
 }
 
+
+/**
+ * A single result (a property auction listing) from the search.
+ */
 class Search_Result
 {
+    /** @var County */
     public $county;
+
+
+    // These are populated from the captured data.
+    /** @var string */
     public $accountNumber;
+
+    /** @var string */
     public $adjudgedValue;
+
+    /** @var string */
     public $minimumBid;
+
+
+    // XXX TODO: Remove this; use $this->county->getUrl() instead.
+    /** @var string */
     public $url;
 
+
+    /**
+     * Get the string/text content from an XML node.
+     * @param SimpleXMLElement $xml The XML node.
+     * @return string The text content of the XML node.
+     */
     public function getTextFromXmlNode(SimpleXMLElement $xml)
     {
         $text = (string)$xml;
@@ -31,6 +69,10 @@ class Search_Result
         return $text;
     }
 
+    /**
+     * Load this Search_Result object from an XML document.
+     * @param SimpleXMLElement $xml The XML document.
+     */
     public function loadFromXml(SimpleXMLElement $xml)
     {
         $attributes = array(
@@ -54,9 +96,9 @@ class Search_Result
                 $attributeValue = $this->getTextFromXmlNode($tdNode);
                 $this->{$attributeName} = $attributeValue;
             } elseif (count($tdNodes) == 0) {
-                // Error: Attribute not found
+                // XXX TODO: Error: Attribute not found
             } else {
-                // Error: Duplicate attribute
+                // XXX TODO: Error: Duplicate attribute
             }
         }
 
