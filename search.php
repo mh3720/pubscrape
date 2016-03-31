@@ -11,6 +11,139 @@
  */
 
 
+class County
+{
+    /** @var string */
+    private $name;
+
+    /** @var string */
+    private $id;
+
+    /**
+     * URL prefix for appraisal district property information.
+     * @var string
+     */
+    private $url;
+
+
+    public function __construct($name, $id, $url = null)
+    {
+        $this->name = $name;
+        $this->id = $id;
+        $this->url = $url;
+    }
+
+
+    public function getId()
+    {
+        return $this->id;
+    }
+
+
+    public function getName()
+    {
+        return $this->name;
+    }
+
+
+    public function getUrl()
+    {
+        return $this->url;
+    }
+}
+
+
+class County_Collection
+{
+    private $counties;
+
+
+    public function getCounties()
+    {
+        return $this->counties;
+    }
+
+
+    function loadFromFile($filename)
+    {
+        $file = fopen($filename, 'r');
+        if ($file === FALSE) {
+            throw new Exception(
+                'Unable to open file: ' . var_export($filename, true)
+            );
+        }
+
+        $counties = array();
+        while ($line = fgetcsv($file)) {
+            $name = $line[0];
+            $id = $line[1];
+            if (isset($line[2])) {
+                $url = $line[2];
+            } else {
+                $url = null;
+            }
+            $county = new County($name, $id, $url);
+            $counties[$id] = $county;
+        }
+        $this->counties = $counties;
+
+        fclose($file);
+    }
+}
+
+
+class Search_Query
+{
+    private $url = 'http://actweb.acttax.com/pls/sales/property_taxsales_pkg.results_page';
+
+    private $state = 'TX';
+    private $saleType = 'SA'; // SA=sale, SO=struck-off
+    private $adjudgedFrom = 90000;
+
+    private $countyId;
+
+
+    public function __construct($countyId)
+    {
+        $this->countyId = $countyId;
+    }
+
+
+    /**
+     * @return string Results/response from the search.
+     */
+    public function execute()
+    {
+        $args = array(
+            'pi_state' => $this->state,
+            'pi_sale_type' => $this->saleType,
+            'pi_venue_group_id' => $this->countyId,
+            'pi_adjudged_from' => $this->adjudgedFrom,
+        );
+        $argsString = http_build_query($args);
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $this->url);
+
+        // application/x-www-form-urlencoded
+        curl_setopt($curl, CURLOPT_POST, 1);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $argsString);
+
+        // Return response as a string
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+
+        $response = curl_exec($curl);
+        if ($response === false) {
+            throw new Exception("cURL HTTP request failed.");
+        }
+
+        curl_close($curl);
+
+        return $response;
+    }
+}
+
+
 /**
  * A single result (a property auction listing) from the search.
  */
@@ -213,137 +346,6 @@ class Search_Result_Collection
 }
 
 
-class Search_Query
-{
-    private $url = 'http://actweb.acttax.com/pls/sales/property_taxsales_pkg.results_page';
-
-    private $state = 'TX';
-    private $saleType = 'SA'; // SA=sale, SO=struck-off
-    private $adjudgedFrom = 90000;
-
-    private $countyId;
-
-
-    public function __construct($countyId)
-    {
-        $this->countyId = $countyId;
-    }
-
-
-    /**
-     * @return string Results/response from the search.
-     */
-    public function execute()
-    {
-        $args = array(
-            'pi_state' => $this->state,
-            'pi_sale_type' => $this->saleType,
-            'pi_venue_group_id' => $this->countyId,
-            'pi_adjudged_from' => $this->adjudgedFrom,
-        );
-        $argsString = http_build_query($args);
-
-        $curl = curl_init();
-        curl_setopt($curl, CURLOPT_URL, $this->url);
-
-        // application/x-www-form-urlencoded
-        curl_setopt($curl, CURLOPT_POST, 1);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $argsString);
-
-        // Return response as a string
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-
-        $response = curl_exec($curl);
-        if ($response === false) {
-            throw new Exception("cURL HTTP request failed.");
-        }
-
-        curl_close($curl);
-
-        return $response;
-    }
-}
-
-
-class County
-{
-    /** @var string */
-    private $name;
-
-    /** @var string */
-    private $id;
-
-    /**
-     * URL prefix for appraisal district property information.
-     * @var string
-     */
-    private $url;
-
-
-    public function __construct($name, $id, $url = null)
-    {
-        $this->name = $name;
-        $this->id = $id;
-        $this->url = $url;
-    }
-
-
-    public function getId()
-    {
-        return $this->id;
-    }
-
-
-    public function getName()
-    {
-        return $this->name;
-    }
-
-
-    public function getUrl()
-    {
-        return $this->url;
-    }
-}
-
-
-class County_Collection
-{
-    private $counties;
-
-
-    public function getCounties()
-    {
-        return $this->counties;
-    }
-
-
-    function loadFromFile($filename)
-    {
-        $file = fopen($filename, 'r');
-        if ($file === FALSE) {
-            throw new Exception(
-                'Unable to open file: ' . var_export($filename, true)
-            );
-        }
-
-        $counties = array();
-        while ($line = fgetcsv($file)) {
-            $name = $line[0];
-            $id = $line[1];
-            if (isset($line[2])) {
-                $url = $line[2];
-            } else {
-                $url = null;
-            }
-            $county = new County($name, $id, $url);
-            $counties[$id] = $county;
-        }
-        $this->counties = $counties;
-
-        fclose($file);
-    }
-}
 
 $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
