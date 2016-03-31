@@ -268,10 +268,10 @@ class Search_Query
 class County
 {
     /** @var string */
-    private $id;
+    private $name;
 
     /** @var string */
-    private $name;
+    private $id;
 
     /**
      * URL prefix for appraisal district property information.
@@ -280,10 +280,10 @@ class County
     private $url;
 
 
-    public function __construct($id, $name, $url = null)
+    public function __construct($name, $id, $url = null)
     {
-        $this->id = $id;
         $this->name = $name;
+        $this->id = $id;
         $this->url = $url;
     }
 
@@ -309,7 +309,14 @@ class County
 
 class County_Collection
 {
-    public $counties;
+    private $counties;
+
+
+    public function getCounties()
+    {
+        return $this->counties;
+    }
+
 
     function loadFromFile($filename)
     {
@@ -329,7 +336,7 @@ class County_Collection
             } else {
                 $url = null;
             }
-            $county = new County($id, $name, $url);
+            $county = new County($name, $id, $url);
             $counties[$id] = $county;
         }
         $this->counties = $counties;
