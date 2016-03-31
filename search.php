@@ -12,21 +12,6 @@
 
 
 /**
- * Compare (subtract) one search result with another.
- * @param Search_Result $a
- * @param Search_Result $b
- * @return float
- * XXX TODO: Refactor this to be a method of Search_Result.
- */
-function compareAdjudgedValue(Search_Result $a, Search_Result $b)
-{
-    $a = round($a->adjudgedValue * 100);
-    $b = round($b->adjudgedValue * 100);
-    return $a - $b;
-}
-
-
-/**
  * A single result (a property auction listing) from the search.
  */
 class Search_Result
@@ -44,11 +29,6 @@ class Search_Result
 
     /** @var string */
     public $minimumBid;
-
-
-    // XXX TODO: Remove this; use $this->county->getUrl() instead.
-    /** @var string */
-    public $url;
 
 
     /**
@@ -101,10 +81,36 @@ class Search_Result
                 // XXX TODO: Error: Duplicate attribute
             }
         }
+    }
 
-        $this->url =
-            $this->county->countyAppraisalDistrictUrl .
-            $this->accountNumber;
+
+    /**
+     * Get the appraisal district URL for this property.
+     * @return string
+     */
+    public function getUrl()
+    {
+        if (empty($this->accountNumber)) {
+            throw new Exception(
+                "Can't get URL for property; account number is not set."
+            );
+        }
+        return $this->county->getUrl() . $this->accountNumber;
+    }
+
+
+    /**
+     * Compare the market values of two properties.
+     * This is used as a usort() callback.
+     * @param Search_Result $a
+     * @param Search_Result $b
+     * @return int
+     */
+    public function compareAdjudgedValue(Search_Result $a, Search_Result $b)
+    {
+        $a = round($a->adjudgedValue * 100);
+        $b = round($b->adjudgedValue * 100);
+        return $a - $b;
     }
 }
 
@@ -184,12 +190,53 @@ class Search_Query
 
 class County
 {
-    public $countyId;
+    /** @var string */
+    private $countyId;
 
-    public $countyName;
+    /** @var string */
+    private $countyName;
 
-    // search property by account number/ID
-    public $countyAppraisalDistrictUrl;
+    /**
+     * URL prefix for property information.
+     * @var string
+     */
+    private $countyAppraisalDistrictUrl;
+
+
+    public function getId()
+    {
+        return $this->countyId;
+    }
+
+
+    public function setId($id)
+    {
+        $this->countyId = $id;
+    }
+
+
+    public function getName()
+    {
+        return $this->countyName;
+    }
+
+
+    public function setName($name)
+    {
+        $this->countyName = $name;
+    }
+
+
+    public function getUrl()
+    {
+        return $this->countyAppraisalDistrictUrl;
+    }
+
+
+    public function setUrl($url)
+    {
+        $this->countyAppraisalDistrictUrl = $url;
+    }
 }
 
 
@@ -207,9 +254,9 @@ class County_Collection
         }
 
         $csvColumnMap = array(
-            'countyName' => 0,
-            'countyId' => 1,
-            'countyAppraisalDistrictUrl' => 2,
+            'Name' => 0,
+            'Id' => 1,
+            'Url' => 2,
         );
 
         $counties = array();
@@ -217,10 +264,13 @@ class County_Collection
             $county = new County();
             foreach ($csvColumnMap as $columnName => $columnIndex) {
                 if (isset($line[$columnIndex])) {
-                    $county->{$columnName} = $line[$columnIndex];
+                    call_user_func_array(
+                        array($county, 'set' . $columnName),
+                        array($line[$columnIndex])
+                    );
                 }
             }
-            $counties[$county->countyId] = $county;
+            $counties[$county->getId()] = $county;
         }
 
         fclose($file);
@@ -262,7 +312,7 @@ foreach ($counties->counties as $countyId => $county) {
             );
     }
     // Sort by adjudged value.
-    usort($countyResults->results, 'compareAdjudgedValue');
+    usort($countyResults->results, array('Search_Result', 'compareAdjudgedValue'));
     $countyResults->results = array_reverse($countyResults->results);
 
     // Flatten results.
@@ -274,11 +324,11 @@ foreach ($counties->counties as $countyId => $county) {
 foreach ($allResults as $result) {
     printf(
         "%s,%s,%.2f,%.2f,%s\n",
-        $result->county->countyName,
+        $result->county->getName(),
         $result->accountNumber,
         $result->adjudgedValue,
         $result->minimumBid,
-        $result->county->countyAppraisalDistrictUrl ? $result->url : ''
+        $result->county->getUrl() ? $result->getUrl() : ''
     );
 }
 
