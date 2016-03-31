@@ -4,19 +4,26 @@
 /**
  * search.php - Use a public web service to find property tax auctions.
  *
- * XXX TODO: Refactor this using SOLID principles.
- * Properties should be private, dependency injection.
- *
  * XXX TODO: Grayson County listings use Geographic ID, not Property ID.
  */
 
 
+/**
+ * Representation of a county.
+ * This is referenced from search queries and search results.
+ */
 class County
 {
-    /** @var string */
+    /**
+     * County name.
+     * @var string
+     */
     private $name;
 
-    /** @var string */
+    /**
+     * County ID as used by the web service.
+     * @var string
+     */
     private $id;
 
     /**
@@ -26,6 +33,12 @@ class County
     private $url;
 
 
+    /**
+     * Create a new County object.
+     * @param string $name  County name.
+     * @param int $id  County ID.
+     * @param string $url  County appraisal district URL prefix.
+     */
     public function __construct($name, $id, $url = null)
     {
         $this->name = $name;
@@ -34,15 +47,15 @@ class County
     }
 
 
-    public function getId()
-    {
-        return $this->id;
-    }
-
-
     public function getName()
     {
         return $this->name;
+    }
+
+
+    public function getId()
+    {
+        return $this->id;
     }
 
 
@@ -53,18 +66,31 @@ class County
 }
 
 
+/**
+ * A collection of all the counties we will search.
+ * We only need one of these, so this will effectively be a singleton.
+ */
 class County_Collection
 {
+    /** @var County[] */
     private $counties;
 
 
+    /**
+     * Get counties that we loaded.
+     * @return County[]
+     */
     public function getCounties()
     {
         return $this->counties;
     }
 
 
-    function loadFromFile($filename)
+    /**
+     * Load a collection of counties from a CSV file.
+     * @param string $filename
+     */
+    public function loadFromFile($filename)
     {
         $file = fopen($filename, 'r');
         if ($file === FALSE) {
@@ -92,17 +118,47 @@ class County_Collection
 }
 
 
+/**
+ * A query to search a single county for property tax auction listings.
+ */
 class Search_Query
 {
+    /**
+     * Target URL for the property search web service.
+     * @var string
+     */
     private $url = 'http://actweb.acttax.com/pls/sales/property_taxsales_pkg.results_page';
 
+    /**
+     * State to search in.  We are only interested in Texas.
+     * @var string
+     */
     private $state = 'TX';
-    private $saleType = 'SA'; // SA=sale, SO=struck-off
+
+    /**
+     * Sale type, as defined by the web service.
+     * SA=sale, SO=struck-off
+     * @var string
+     */
+    private $saleType = 'SA'; 
+
+    /**
+     * Minimum market value.
+     * @var int
+     */
     private $adjudgedFrom = 90000;
 
+    /**
+     * County ID, as defined by the web service.
+     * @var int
+     */
     private $countyId;
 
 
+    /**
+     * Create a new search query for the specified county.
+     * @param int $countyId
+     */
     public function __construct($countyId)
     {
         $this->countyId = $countyId;
@@ -110,6 +166,7 @@ class Search_Query
 
 
     /**
+     * Execute the search query.
      * @return string Results/response from the search.
      */
     public function execute()
@@ -164,6 +221,10 @@ class Search_Result
     private $minimumBid;
 
 
+    /**
+     * Create and initialize a new search result.
+     * @param County $county  The state county this result is in.
+     */
     public function __construct(County $county)
     {
         $this->county = $county;
@@ -216,10 +277,11 @@ class Search_Result
 
     /**
      * Get the string/text content from an XML node.
+     * This is a utility method used when loading the result from XML.
      * @param SimpleXMLElement $xml The XML node.
      * @return string The text content of the XML node.
      */
-    public function getTextFromXmlNode(SimpleXMLElement $xml)
+    private function getTextFromXmlNode(SimpleXMLElement $xml)
     {
         $text = (string)$xml;
 
@@ -233,7 +295,7 @@ class Search_Result
     }
 
     /**
-     * Load this Search_Result object from an XML document.
+     * Load this search result object from an XML (HTML) document.
      * @param SimpleXMLElement $xml The XML document.
      */
     public function loadFromXml(SimpleXMLElement $xml)
@@ -265,7 +327,7 @@ class Search_Result
             }
         }
 
-        // Unformat currency, to simplify comparisons.
+        // Parse currency values, to simplify comparisons for sorting.
         $this->adjudgedValue =
             (float)str_replace(
                 array('$', ','),
@@ -297,6 +359,9 @@ class Search_Result
 }
 
 
+/**
+ * A collection of search results which belong to the same county.
+ */
 class Search_Result_Collection
 {
     /** @var County */
@@ -306,13 +371,22 @@ class Search_Result_Collection
     private $results;
 
 
+    /**
+     * Create and initialize this collection for the specified county.
+     * @var County $county
+     */
     public function __construct(County $county)
     {
         $this->county = $county;
     }
 
 
-    public function createXmlFromHtml($html)
+    /**
+     * Parse HTML into a SimpleXMLElement.
+     * @param string $html
+     * @return SimpleXMLElement
+     */
+    private function createXmlFromHtml($html)
     {
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
@@ -322,6 +396,10 @@ class Search_Result_Collection
     }
 
 
+    /**
+     * Load this result collection from a string of HTML.
+     * @param string $html
+     */
     public function loadFromHtml($html)
     {
         $documentXml = $this->createXmlFromHtml($html);
@@ -339,6 +417,10 @@ class Search_Result_Collection
     }
 
 
+    /**
+     * Get all the results in this collection.
+     * @return Search_Result[]
+     */
     public function getResults()
     {
         return $this->results;
@@ -347,9 +429,11 @@ class Search_Result_Collection
 
 
 
+// Load the collection of counties to search.
 $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
 
+// For each county, build and execute query, parse and collect results.
 $allResults = array();
 foreach ($counties->getCounties() as $countyId => $county) {
     $search = new Search_Query($countyId);
@@ -358,7 +442,7 @@ foreach ($counties->getCounties() as $countyId => $county) {
     $countyResults = new Search_Result_Collection($county);
     $countyResults->loadFromHtml($html);
 
-    // Skip empty results.
+    // Skip counties with no results.
     if (count($countyResults->getResults()) == 0) {
         continue;
     }
