@@ -166,8 +166,18 @@ class Search_Result
 
 class Search_Result_Collection
 {
-    public $county;
-    public $results;
+    /** @var County */
+    private $county;
+
+    /** @var Search_Result[] */
+    private $results;
+
+
+    public function __construct(County $county)
+    {
+        $this->county = $county;
+    }
+
 
     public function createXmlFromHtml($html)
     {
@@ -177,6 +187,7 @@ class Search_Result_Collection
         // TODO: handle errors
         return simplexml_import_dom($dom);
     }
+
 
     public function loadFromHtml($html)
     {
@@ -188,6 +199,16 @@ class Search_Result_Collection
             $result->loadFromXml($resultNode);
             $this->results[] = $result;
         }
+
+        // Sort by adjudged value, descending (highest value first).
+        usort($this->results, array('Search_Result', 'compareAdjudgedValue'));
+        $this->results = array_reverse($this->results);
+    }
+
+
+    public function getResults()
+    {
+        return $this->results;
     }
 }
 
@@ -335,21 +356,16 @@ foreach ($counties->counties as $countyId => $county) {
     $search->countyId = $countyId;
 
     $html = $search->execute();
-    $countyResults = new Search_Result_Collection();
-    $countyResults->county = $county;
+    $countyResults = new Search_Result_Collection($county);
     $countyResults->loadFromHtml($html);
 
     // Skip empty results.
-    if (count((array)$countyResults->results) == 0) {
+    if (count($countyResults->getResults()) == 0) {
         continue;
     }
 
-    // Sort by adjudged value.
-    usort($countyResults->results, array('Search_Result', 'compareAdjudgedValue'));
-    $countyResults->results = array_reverse($countyResults->results);
-
     // Flatten results.
-    $allResults = array_merge($allResults, $countyResults->results);
+    $allResults = array_merge($allResults, $countyResults->getResults());
 
     sleep(1);
 }
