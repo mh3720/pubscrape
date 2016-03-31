@@ -295,8 +295,9 @@ class Search_Result
     }
 
     /**
-     * Load this search result object from an XML (HTML) document.
-     * @param SimpleXMLElement $xml The XML document.
+     * Load this search result object from an XML node,
+     *   which was extracted from an XML (HTML) document.
+     * @param SimpleXMLElement $xml The XML node.
      */
     public function loadFromXml(SimpleXMLElement $xml)
     {
@@ -382,9 +383,9 @@ class Search_Result_Collection
 
 
     /**
-     * Parse HTML into a SimpleXMLElement.
+     * Parse HTML into a SimpleXMLElement tree.
      * @param string $html
-     * @return SimpleXMLElement
+     * @return SimpleXMLElement  The top-level node of the XML tree.
      */
     private function createXmlFromHtml($html)
     {
@@ -464,5 +465,21 @@ foreach ($allResults as $result) {
     );
 }
 
+
+/*
+Example output:
+
+Dallas,60175500000020000,287240.00,52443.58,http://www.dallascad.org/AcctDetailRes.aspx?ID=60175500000020000
+Dallas,65046459010370000,120000.00,11838.93,http://www.dallascad.org/AcctDetailRes.aspx?ID=65046459010370000
+Ellis,151141,309960.00,12415.37,http://esearch.elliscad.com/Search/Result?keywords=PropertyId:151141
+Ellis,152876,101900.00,101900.00,http://esearch.elliscad.com/Search/Result?keywords=PropertyId:152876
+Grayson,047A6614011,113203.00,6362.78,http://esearch.graysonappraisal.org/Search/Result?keywords=PropertyId:047A6614011
+Hunt,29640,131370.00,29533.19,http://esearch.hunt-cad.org/Search/Result?keywords=PropertyId:29640
+Kaufman,40094,137490.00,1930.04,http://esearch.kaufman-cad.org/Search/Result?keywords=PropertyId:40094
+Smith,100000057000010002,299271.00,7150.88,
+Tarrant,01502700,225004.00,34013.81,http://www.tad.org/property-data-sheet-residential?keyword=01502700
+Tarrant,01947362,95200.00,34612.51,http://www.tad.org/property-data-sheet-residential?keyword=01947362
+
+*/
 
 // EOF
