@@ -17,18 +17,18 @@
 class Search_Result
 {
     /** @var County */
-    public $county;
+    private $county;
 
 
     // These are populated from the captured data.
     /** @var string */
-    public $accountNumber;
+    private $accountNumber;
 
     /** @var string */
-    public $adjudgedValue;
+    private $adjudgedValue;
 
     /** @var string */
-    public $minimumBid;
+    private $minimumBid;
 
 
     /**
@@ -117,10 +117,29 @@ class Search_Result
 
 class Search_Result_Collection
 {
-    public $county;
-    public $results;
+    /** @var County */
+    private $county;
 
-    public function createXmlFromHtml($html)
+    /* @var Search_Result[] */
+    private $results;
+
+
+    public function __construct(County $county)
+    {
+        $this->county = $county;
+    }
+
+
+    /**
+     * @return Search_Result[]
+     */
+    public function getResults()
+    {
+        return $this->results;
+    }
+
+
+    private function createXmlFromHtml($html)
     {
         libxml_use_internal_errors(true);
         $dom = new DOMDocument();
@@ -129,6 +148,7 @@ class Search_Result_Collection
         return simplexml_import_dom($dom);
     }
 
+
     public function loadFromHtml($html)
     {
         $documentXml = $this->createXmlFromHtml($html);
@@ -136,7 +156,7 @@ class Search_Result_Collection
         $this->results = array();
         foreach ($resultNodes as $resultNode) {
             $result = new Search_Result();
-            $result->county = $this->county;
+            $result->setCounty($this->county);
             $result->loadFromXml($resultNode);
             $this->results[] = $result;
         }
@@ -146,12 +166,24 @@ class Search_Result_Collection
 
 class Search_Query
 {
-    public $state = 'TX';
-    public $countyId;
-    public $saleType = 'SA'; // SA=sale, SO=struck-off
-    public $adjudgedFrom = 90000;
-
     private $url = 'http://actweb.acttax.com/pls/sales/property_taxsales_pkg.results_page';
+
+    private $state = 'TX';
+    private $saleType = 'SA'; // SA=sale, SO=struck-off
+    private $adjudgedFrom = 90000;
+
+    /** @var int */
+    private $countyId;
+
+
+    /**
+     * @param int $countyId
+     */
+    public function __construct($countyId)
+    {
+        $this->countyId = $countyId;
+    }
+
 
     /**
      * @return string Results/response from the search.
@@ -191,58 +223,55 @@ class Search_Query
 class County
 {
     /** @var string */
-    private $countyId;
+    private $id;
 
     /** @var string */
-    private $countyName;
+    private $name;
 
     /**
-     * URL prefix for property information.
+     * URL prefix for appraisal district property information.
      * @var string
      */
-    private $countyAppraisalDistrictUrl;
+    private $url;
+
+
+    public function __construct($id, $name, $url = null)
+    {
+        $this->id = $id;
+        $this->name = $name;
+        $this->url = $url;
+    }
 
 
     public function getId()
     {
-        return $this->countyId;
-    }
-
-
-    public function setId($id)
-    {
-        $this->countyId = $id;
+        return $this->id;
     }
 
 
     public function getName()
     {
-        return $this->countyName;
-    }
-
-
-    public function setName($name)
-    {
-        $this->countyName = $name;
+        return $this->name;
     }
 
 
     public function getUrl()
     {
-        return $this->countyAppraisalDistrictUrl;
-    }
-
-
-    public function setUrl($url)
-    {
-        $this->countyAppraisalDistrictUrl = $url;
+        return $this->url;
     }
 }
 
 
 class County_Collection
 {
-    public $counties;
+    private $counties;
+
+
+    public function getCounties()
+    {
+        return $this->counties;
+    }
+
 
     function loadFromFile($filename)
     {
@@ -253,46 +282,38 @@ class County_Collection
             );
         }
 
-        $csvColumnMap = array(
-            'Name' => 0,
-            'Id' => 1,
-            'Url' => 2,
-        );
-
         $counties = array();
         while ($line = fgetcsv($file)) {
-            $county = new County();
-            foreach ($csvColumnMap as $columnName => $columnIndex) {
-                if (isset($line[$columnIndex])) {
-                    call_user_func_array(
-                        array($county, 'set' . $columnName),
-                        array($line[$columnIndex])
-                    );
-                }
+            $id = $line[0];
+            $name = $line[1];
+            if (isset($line[2])) {
+                $url = $line[2];
+            } else {
+                $url = null;
             }
+
+            $county = new County($id, $name, $url);
+
             $counties[$county->getId()] = $county;
         }
+        $this->counties = $counties;
 
         fclose($file);
-
-        $this->counties = $counties;
     }
 }
 
 $counties = new County_Collection();
 $counties->loadFromFile('counties/searchable_counties');
 $allResults = array();
-foreach ($counties->counties as $countyId => $county) {
-    $search = new Search_Query();
-    $search->countyId = $countyId;
+foreach ($counties->getCounties() as $countyId => $county) {
+    $search = new Search_Query($countyId);
 
     $html = $search->execute();
-    $countyResults = new Search_Result_Collection();
-    $countyResults->county = $county;
+    $countyResults = new Search_Result_Collection($county);
     $countyResults->loadFromHtml($html);
 
     // Skip empty results.
-    if (count((array)$countyResults->results) == 0) {
+    if (count($countyResults->getResults()) == 0) {
         continue;
     }
 
@@ -320,6 +341,8 @@ foreach ($counties->counties as $countyId => $county) {
 
     sleep(1);
 }
+
+echo 'count($allResults) = ' . count($allResults) . "\n";
 
 foreach ($allResults as $result) {
     printf(
